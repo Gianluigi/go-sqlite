@@ -1,5 +1,4 @@
-name: Test go-sqlite package
-
+name: Test go package
 
 on:
   push:
