@@ -602,7 +602,7 @@ func (c *Conn) Backup(srcName string, dst *Conn, dstName string) (*Backup, error
 // be treated as a file for reading and/or writing. The value is located as if
 // by the following query:
 //
-// 	SELECT col FROM db.tbl WHERE rowid=row
+//	SELECT col FROM db.tbl WHERE rowid=row
 //
 // If rw is true, the value is opened with read-write access, otherwise it is
 // read-only. It is not possible to open a column that is part of an index or
@@ -962,7 +962,7 @@ func (s *Stmt) bindNamed(args NamedArgs) error {
 			return pkgErr(MISUSE, "unsupported type for %s (%T)", name, v)
 		}
 		if rc != OK {
-			return errStr(rc)
+			return libErr(rc, s.db)
 		}
 	}
 	return nil
@@ -981,7 +981,8 @@ func (s *Stmt) Step() (bool, error) {
 	if rc == DONE {
 		return false, nil
 	}
-	return false, errStr(rc)
+	//return false, errStr(rc)
+	return false, libErr(rc, s.db)
 }
 
 // StepToCompletion is a convenience method that repeatedly calls Step until no
@@ -997,7 +998,7 @@ func (s *Stmt) StepToCompletion() error {
 		} else if rc == DONE {
 			break
 		} else {
-			return errStr(rc)
+			return libErr(rc, s.db)
 		}
 	}
 	return nil

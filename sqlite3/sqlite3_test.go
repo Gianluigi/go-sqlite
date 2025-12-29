@@ -164,7 +164,7 @@ func TestLib(T *testing.T) {
 		t.Errorf("VersionNum() expected >= %d; got %d", min, v)
 	}
 
-	sql := "CREATE TABLE x(a)"
+	sql := "create table x(a)"
 	if Complete(sql) {
 		t.Errorf("Complete(%q) expected false", sql)
 	}
@@ -179,10 +179,12 @@ func TestCreate(T *testing.T) {
 
 	checkPath := func(c *Conn, name, want string) {
 		if have := c.FileName(name); have != want {
-			t.Fatalf(cl("c.FileName() expected %q; got %q"), want, have)
+			if have != fmt.Sprintf("/private%s", want) {
+				t.Fatalf(cl("c.FileName() expected %q; got %q"), want, have)
+			}
 		}
 	}
-	sql := "CREATE TABLE x(a); INSERT INTO x VALUES(1);"
+	sql := "create table x(a); insert into x values(1);"
 	tmp := t.tmpFile()
 
 	// File
@@ -206,7 +208,7 @@ func TestCreate(T *testing.T) {
 	c = t.open("file:" + uri)
 	defer t.close(c)
 	checkPath(c, "main", tmp)
-	t.exec(c, "INSERT INTO x VALUES(2)")
+	t.exec(c, "insert into x values(2)")
 
 	// Temporary (in-memory)
 	c = t.open(":memory:")
@@ -226,8 +228,8 @@ func TestPrepare(T *testing.T) {
 	defer t.skipRestIfFailed()
 
 	sql := `
-		CREATE TABLE x(a, b, c, d, e);
-		INSERT INTO x VALUES(NULL, 123, 1.23, 'TEXT', x'424C4F42');
+		create table x(a, b, c, d, e);
+		insert into x values(null, 123, 1.23, 'TEXT', x'424C4F42');
 	`
 	type row struct {
 		a interface{}
@@ -243,7 +245,7 @@ func TestPrepare(T *testing.T) {
 	defer t.close(c)
 	t.exec(c, sql)
 
-	s := t.prepare(c, "SELECT * FROM x")
+	s := t.prepare(c, "select * from x")
 	defer t.close(s)
 	t.step(s, true)
 	t.scan(s, &have.a, &have.b, &have.c, &have.d, &have.e)
@@ -313,10 +315,10 @@ func TestScan(T *testing.T) {
 	c := t.open(":memory:")
 	defer t.close(c)
 	t.exec(c, `
-		CREATE TABLE x(a, b, c, d, e, f, g, h, i);
-		INSERT INTO x VALUES(NULL, '', x'', 0, 0.0, 4.2, 42, '42', x'3432');
+		create table x(a, b, c, d, e, f, g, h, i);
+		insert into x values(null, '', x'', 0, 0.0, 4.2, 42, '42', x'3432');
 	`)
-	s := t.prepare(c, "SELECT * FROM x")
+	s := t.prepare(c, "select * from x")
 	defer t.close(s)
 
 	t.step(s, true)
@@ -443,7 +445,7 @@ func TestScanDynamic(T *testing.T) {
 		INSERT INTO x VALUES('42', '42', '42', '42');
 		INSERT INTO x VALUES(x'3432', x'3432', x'3432', x'3432');
 	`)
-	s := t.prepare(c, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c, "select * from x order by rowid")
 	defer t.close(s)
 	t.step(s, true)
 
@@ -504,7 +506,7 @@ func TestTail(T *testing.T) {
 			t.Errorf(cl("tail expected %q; got %q"), tail, s.Tail)
 		}
 	}
-	head := "CREATE TABLE x(a);"
+	head := "create table x(a);"
 	tail := " -- comment"
 
 	check("", "")
@@ -519,7 +521,7 @@ func TestParams(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a, b, c, d)")
+	t.exec(c, "create table x(a, b, c, d)")
 
 	dt := func(v interface{}) uint8 {
 		switch v.(type) {
@@ -535,7 +537,7 @@ func TestParams(T *testing.T) {
 		return NULL
 	}
 	verify := func(_a, _b, _c, _d interface{}) {
-		s := t.prepare(c, "SELECT * FROM x ORDER BY rowid LIMIT 1")
+		s := t.prepare(c, "select * from x order by rowid limit 1")
 		defer t.close(s)
 
 		t.step(s, true)
@@ -551,11 +553,11 @@ func TestParams(T *testing.T) {
 		if !reflect.DeepEqual(have, want) {
 			t.Fatalf(cl("verify() expected\n%#v; got\n%#v"), want, have)
 		}
-		t.exec(c, "DELETE FROM x WHERE rowid=(SELECT min(rowid) FROM x)")
+		t.exec(c, "delete from x where rowid=(select min(rowid) from x)")
 	}
 
 	// Unnamed
-	sql := "INSERT INTO x VALUES(?, ?, ?, ?)"
+	sql := "insert into x values(?, ?, ?, ?)"
 	s := t.prepare(c, sql)
 	defer t.close(s)
 
@@ -581,7 +583,7 @@ func TestParams(T *testing.T) {
 	verify([]byte{}, []byte("x"), []byte{}, []byte{0, 0})
 
 	// Named
-	s = t.prepare(c, "INSERT INTO x VALUES(:a, @B, :a, $d)")
+	s = t.prepare(c, "insert into x values(:a, @B, :a, $d)")
 	defer t.close(s)
 
 	t.exec(s, NamedArgs{})
@@ -607,13 +609,13 @@ func TestParams(T *testing.T) {
 	verify(int64(1), int64(2), int64(3), int64(4))
 
 	// Conn.Exec
-	t.exec(c, "INSERT INTO x VALUES(?, ?, NULL, NULL)", 1, 2)
-	t.exec(c, "INSERT INTO x VALUES(NULL, NULL, ?, ?);", 3, 4)
+	t.exec(c, "insert into x values(?, ?, null, null)", 1, 2)
+	t.exec(c, "insert into x values(null, null, ?, ?);", 3, 4)
 	verify(int64(1), int64(2), nil, nil)
 	verify(nil, nil, int64(3), int64(4))
 
-	t.exec(c, "INSERT INTO x VALUES($a, $b, NULL, NULL);", NamedArgs{"$a": "a", "$b": "b"})
-	t.exec(c, "INSERT INTO x VALUES($a, $a, $c, $d);", NamedArgs{"$a": "a", "$b": "b", "$c": "c", "$d": "d"})
+	t.exec(c, "insert into x values($a, $b, null, null);", NamedArgs{"$a": "a", "$b": "b"})
+	t.exec(c, "insert into x values($a, $a, $c, $d);", NamedArgs{"$a": "a", "$b": "b", "$c": "c", "$d": "d"})
 	verify("a", "b", nil, nil)
 	verify("a", "a", "c", "d")
 }
@@ -624,14 +626,14 @@ func TestTx(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a)")
+	t.exec(c, "create table x(a)")
 
 	// Begin/Commit
 	if err := c.Begin(); err != nil {
 		t.Fatalf("c.Begin() unexpected error: %v", err)
 	}
-	t.exec(c, "INSERT INTO x VALUES(1)")
-	t.exec(c, "INSERT INTO x VALUES(2)")
+	t.exec(c, "insert into x values(1)")
+	t.exec(c, "insert into x values(2)")
 	if err := c.Commit(); err != nil {
 		t.Fatalf("c.Commit() unexpected error: %v", err)
 	}
@@ -640,14 +642,14 @@ func TestTx(T *testing.T) {
 	if err := c.Begin(); err != nil {
 		t.Fatalf("c.Begin() unexpected error: %v", err)
 	}
-	t.exec(c, "INSERT INTO x VALUES(3)")
-	t.exec(c, "INSERT INTO x VALUES(4)")
+	t.exec(c, "insert into x values(3)")
+	t.exec(c, "insert into x values(4)")
 	if err := c.Rollback(); err != nil {
 		t.Fatalf("c.Rollback() unexpected error: %v", err)
 	}
 
 	// Verify
-	s := t.prepare(c, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c, "select * from x order by rowid")
 	defer t.close(s)
 	t.step(s, true)
 
@@ -667,9 +669,9 @@ func TestIO(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a)")
-	t.exec(c, "INSERT INTO x VALUES(?)", ZeroBlob(8))
-	t.exec(c, "INSERT INTO x VALUES(?)", "hello, world")
+	t.exec(c, "create table x(a)")
+	t.exec(c, "insert into x values(?)", ZeroBlob(8))
+	t.exec(c, "insert into x values(?)", "hello, world")
 
 	// Open
 	b, err := c.BlobIO("main", "x", "a", 1, true)
@@ -732,7 +734,7 @@ func TestIO(T *testing.T) {
 	}
 
 	// Verify
-	s := t.prepare(c, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c, "select * from x order by rowid")
 	defer t.close(s)
 	var have string
 	t.step(s, true)
@@ -754,9 +756,9 @@ func TestBackup(T *testing.T) {
 	c1, c2 := t.open(":memory:"), t.open(":memory:")
 	defer t.close(c1)
 	defer t.close(c2)
-	t.exec(c1, "CREATE TABLE x(a)")
-	t.exec(c1, "INSERT INTO x VALUES(?)", "1234567\x00")
-	t.exec(c1, "INSERT INTO x VALUES(?)", "hello, world")
+	t.exec(c1, "create table x(a)")
+	t.exec(c1, "insert into x values(?)", "1234567\x00")
+	t.exec(c1, "insert into x values(?)", "hello, world")
 
 	// Backup
 	b, err := c1.Backup("main", c2, "main")
@@ -784,7 +786,7 @@ func TestBackup(T *testing.T) {
 	}
 
 	// Verify
-	s := t.prepare(c2, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c2, "select * from x order by rowid")
 	defer t.close(s)
 	t.step(s, true)
 
@@ -806,9 +808,9 @@ func TestSchema(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a int)")
-	t.exec(c, "INSERT INTO x VALUES(1)")
-	t.exec(c, "INSERT INTO x VALUES(2)")
+	t.exec(c, "create table x(a int)")
+	t.exec(c, "insert into x values(1)")
+	t.exec(c, "insert into x values(2)")
 
 	checkCols := func(s *Stmt, want ...string) {
 		if have := s.ColumnCount(); have != len(want) {
@@ -823,13 +825,13 @@ func TestSchema(T *testing.T) {
 			t.Fatalf(cl("s.DeclTypes() expected %v; got %v"), want, have)
 		}
 	}
-	s := t.prepare(c, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c, "select * from x order by rowid")
 	defer t.close(s)
 
 	t.step(s, true)
 
 	checkCols(s, "a")
-	checkDecls(s, "int")
+	checkDecls(s, "INT")
 	var a interface{}
 	t.scan(s, &a)
 	if a != int64(1) {
@@ -837,11 +839,11 @@ func TestSchema(T *testing.T) {
 	}
 
 	// Schema changes do not affect running statements
-	t.exec(c, "ALTER TABLE x ADD b text")
+	t.exec(c, "alter table x add b text")
 	t.step(s, true)
 
 	checkCols(s, "a")
-	checkDecls(s, "int")
+	checkDecls(s, "INT")
 	t.scan(s, &a)
 	if a != int64(2) {
 		t.Fatal("Expected 2")
@@ -849,12 +851,12 @@ func TestSchema(T *testing.T) {
 	t.step(s, false)
 
 	checkCols(s, "a")
-	checkDecls(s, "int")
+	checkDecls(s, "INT")
 	t.reset(s)
 	t.step(s, true)
 
 	checkCols(s, "a", "b")
-	checkDecls(s, "int", "text")
+	checkDecls(s, "INT", "TEXT")
 	var b interface{}
 	t.scan(s, &a, &b)
 	if a != int64(1) {
@@ -866,7 +868,7 @@ func TestSchema(T *testing.T) {
 	t.step(s, true)
 
 	checkCols(s, "a", "b")
-	checkDecls(s, "int", "text")
+	checkDecls(s, "INT", "TEXT")
 	t.scan(s, &a, &b)
 	if a != int64(2) {
 		t.Fatal("Expected 2")
@@ -882,14 +884,14 @@ func TestUpdateDeleteLimit(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a INTEGER PRIMARY KEY)")
-	t.exec(c, "INSERT INTO x VALUES(?)", 1)
-	t.exec(c, "INSERT INTO x VALUES(?)", 2)
-	t.exec(c, "INSERT INTO x VALUES(?)", 3)
-	t.exec(c, "INSERT INTO x VALUES(?)", 4)
-	t.exec(c, "INSERT INTO x VALUES(?)", 5)
-	t.exec(c, "UPDATE x SET a = a + 10 WHERE a >= 1 ORDER BY a LIMIT 2 OFFSET 1")
-	t.exec(c, "DELETE FROM x WHERE a >= 10 ORDER BY a LIMIT 1 OFFSET 1")
+	t.exec(c, "create table x(a INTEGER primary key)")
+	t.exec(c, "insert into x values(?)", 1)
+	t.exec(c, "insert into x values(?)", 2)
+	t.exec(c, "insert into x values(?)", 3)
+	t.exec(c, "insert into x values(?)", 4)
+	t.exec(c, "insert into x values(?)", 5)
+	t.exec(c, "update x set a = a + 10 where a >= 1 order by a limit 2 offset 1")
+	t.exec(c, "delete from x where a >= 10 order by a limit 1 offset 1")
 }
 
 func TestStringNull(T *testing.T) {
@@ -897,9 +899,9 @@ func TestStringNull(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a TEXT)")
-	t.exec(c, "INSERT INTO x VALUES(?)", nil)
-	s := t.prepare(c, "SELECT * from x")
+	t.exec(c, "create table x(a TEXT)")
+	t.exec(c, "insert into x values(?)", nil)
+	s := t.prepare(c, "select * from x")
 	defer s.Close()
 
 	t.step(s, true)
@@ -925,9 +927,9 @@ func TestStringNullByteSlice(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a TEXT)")
-	t.exec(c, "INSERT INTO x VALUES(?)", nil)
-	s := t.prepare(c, "SELECT * from x")
+	t.exec(c, "create table x(a TEXT)")
+	t.exec(c, "insert into x values(?)", nil)
+	s := t.prepare(c, "select * from x")
 	defer s.Close()
 
 	t.step(s, true)
@@ -950,8 +952,8 @@ func TestRawStringNull(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a TEXT)")
-	t.exec(c, "INSERT INTO x VALUES(?)", nil)
+	t.exec(c, "create table x(a TEXT)")
+	t.exec(c, "insert into x values(?)", nil)
 }
 
 func TestTxHandler(T *testing.T) {
@@ -960,7 +962,7 @@ func TestTxHandler(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a)")
+	t.exec(c, "create table x(a)")
 
 	commit := 0
 	rollback := 0
@@ -969,23 +971,23 @@ func TestTxHandler(T *testing.T) {
 
 	// Allow
 	c.Begin()
-	t.exec(c, "INSERT INTO x VALUES(1)")
-	t.exec(c, "INSERT INTO x VALUES(2)")
+	t.exec(c, "insert into x values(1)")
+	t.exec(c, "insert into x values(2)")
 	if err := c.Commit(); err != nil {
 		t.Fatalf("c.Commit() unexpected error: %v", err)
 	}
 
 	// Deny
 	c.Begin()
-	t.exec(c, "INSERT INTO x VALUES(3)")
-	t.exec(c, "INSERT INTO x VALUES(4)")
+	t.exec(c, "insert into x values(3)")
+	t.exec(c, "insert into x values(4)")
 	t.errCode(c.Commit(), CONSTRAINT_COMMITHOOK)
 
 	// Verify
 	if commit != 2 || rollback != 1 {
 		t.Fatalf("commit/rollback expected 2/1; got %d/%d", commit, rollback)
 	}
-	s := t.prepare(c, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c, "select * from x order by rowid")
 	defer t.close(s)
 	var i int
 	t.step(s, true)
@@ -1005,7 +1007,7 @@ func TestUpdateHandler(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a)")
+	t.exec(c, "create table x(a)")
 
 	type update struct {
 		op      int
@@ -1022,16 +1024,16 @@ func TestUpdateHandler(T *testing.T) {
 		have = &update{op, db.Copy(), tbl.Copy(), row}
 	})
 
-	t.exec(c, "INSERT INTO x VALUES(1)")
+	t.exec(c, "insert into x values(1)")
 	verify(&update{INSERT, "main", "x", 1})
 
-	t.exec(c, "INSERT INTO x VALUES(2)")
+	t.exec(c, "insert into x values(2)")
 	verify(&update{INSERT, "main", "x", 2})
 
-	t.exec(c, "UPDATE x SET a=3 WHERE rowid=1")
+	t.exec(c, "update x set a=3 where rowid=1")
 	verify(&update{UPDATE, "main", "x", 1})
 
-	t.exec(c, "DELETE FROM x WHERE rowid=2")
+	t.exec(c, "delete from x where rowid=2")
 	verify(&update{DELETE, "main", "x", 2})
 }
 
@@ -1041,7 +1043,7 @@ func TestAuthorizerHandler(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a)")
+	t.exec(c, "create table x(a)")
 
 	type authorizer struct {
 		op                     int
@@ -1058,10 +1060,10 @@ func TestAuthorizerHandler(T *testing.T) {
 		return OK
 	})
 
-	t.exec(c, "INSERT INTO x VALUES(1)")
+	t.exec(c, "insert into x values(1)")
 	verify(&authorizer{INSERT, "x", "", "main", ""})
 
-	t.exec(c, "SELECT * FROM x")
+	t.exec(c, "select * from x")
 	verify(&authorizer{READ, "x", "a", "main", ""})
 }
 
@@ -1073,7 +1075,7 @@ func TestBusyHandler(T *testing.T) {
 	defer t.close(c1)
 	c2 := t.open(tmp)
 	defer t.close(c2)
-	t.exec(c1, "CREATE TABLE x(a); BEGIN; INSERT INTO x VALUES(1);")
+	t.exec(c1, "create table x(a); begin; insert into x values(1);")
 
 	try := func(sql string) {
 		err := c2.Exec(sql)
@@ -1081,11 +1083,11 @@ func TestBusyHandler(T *testing.T) {
 	}
 
 	// Default
-	try("INSERT INTO x VALUES(2)")
+	try("insert into x values(2)")
 
 	// Built-in
 	c2.BusyTimeout(100 * time.Millisecond)
-	try("INSERT INTO x VALUES(3)")
+	try("insert into x values(3)")
 
 	// Custom
 	calls := 0
@@ -1095,14 +1097,14 @@ func TestBusyHandler(T *testing.T) {
 		return calls == count+1 && calls < 10
 	}
 	c2.BusyFunc(handler)
-	try("INSERT INTO x VALUES(4)")
+	try("insert into x values(4)")
 	if calls != 10 {
 		t.Fatalf("calls expected 10; got %d", calls)
 	}
 
 	// Disable
 	c2.BusyTimeout(0)
-	try("INSERT INTO x VALUES(5)")
+	try("insert into x values(5)")
 }
 
 func TestLocked(T *testing.T) {
@@ -1111,21 +1113,21 @@ func TestLocked(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a)")
+	t.exec(c, "create table x(a)")
 
 	// Allow
 	c.Begin()
-	t.exec(c, "INSERT INTO x VALUES(1)")
-	t.exec(c, "INSERT INTO x VALUES(2)")
+	t.exec(c, "insert into x values(1)")
+	t.exec(c, "insert into x values(2)")
 	if err := c.Commit(); err != nil {
 		t.Fatalf("c.Commit() unexpected error: %v", err)
 	}
 
-	s := t.prepare(c, "SELECT * FROM x ORDER BY rowid")
+	s := t.prepare(c, "select * from x order by rowid")
 	defer t.close(s)
 	t.step(s, true)
 
-	s2 := t.prepare(c, "DROP TABLE x")
+	s2 := t.prepare(c, "drop table x")
 	defer s2.Close()
 	_, err := s2.Step()
 	if err == nil {
@@ -1140,13 +1142,13 @@ func TestWithTx(T *testing.T) {
 		t.Fatalf("failed to open")
 	}
 
-	err = conn.Exec(`CREATE TABLE student(name TEXT, age INTEGER)`)
+	err = conn.Exec(`create table student(name TEXT, age INTEGER)`)
 	if err != nil {
 		t.Fatalf("failed to create table")
 	}
 
 	err = conn.WithTx(func() error {
-		err = conn.Exec(`INSERT INTO student VALUES (?, ?)`, "Bob", 18)
+		err = conn.Exec(`insert into student values (?, ?)`, "Bob", 18)
 		if err != nil {
 			return err
 		}
@@ -1165,7 +1167,7 @@ func TestWithTx(T *testing.T) {
 	}
 
 	err = conn.WithTxExclusive(func() error {
-		err = conn.Exec(`INSERT INTO student VALUES (?, ?)`, "Bob", 18)
+		err = conn.Exec(`insert into student values (?, ?)`, "Bob", 18)
 		if err != nil {
 			return err
 		}
@@ -1183,7 +1185,7 @@ func TestWithTx(T *testing.T) {
 	}
 
 	err = conn.WithTxImmediate(func() error {
-		err = conn.Exec(`INSERT INTO student VALUES (?, ?)`, "Bob", 18)
+		err = conn.Exec(`insert into student values (?, ?)`, "Bob", 18)
 		if err != nil {
 			return err
 		}
@@ -1206,9 +1208,9 @@ func TestOutOfRange(T *testing.T) {
 
 	c := t.open(":memory:")
 	defer t.close(c)
-	t.exec(c, "CREATE TABLE x(a TEXT)")
-	t.exec(c, "INSERT INTO x VALUES(?)", nil)
-	s := t.prepare(c, "SELECT * from x")
+	t.exec(c, "create table x(a TEXT)")
+	t.exec(c, "insert into x values(?)", nil)
+	s := t.prepare(c, "select * from x")
 	defer s.Close()
 
 	t.step(s, true)

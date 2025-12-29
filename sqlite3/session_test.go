@@ -26,16 +26,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bvinc/go-sqlite-lite/sqlite3"
+	"github.com/gianluigi/go-sqlite/sqlite3"
 )
 
 func initT(t *testing.T, conn *sqlite3.Conn) {
-	err := conn.Exec(`INSERT INTO t (c1, c2, c3) VALUES ("1", "2", "3");`)
+	err := conn.Exec(`insert into t (c1, c2, c3) values ("1", "2", "3");`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = conn.Exec(`INSERT INTO t (c1, c2, c3) VALUES ("4", "5", "6");`)
+	err = conn.Exec(`insert into t (c1, c2, c3) values ("4", "5", "6");`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func fillSession(t *testing.T) (*sqlite3.Conn, *sqlite3.Session) {
 		t.Fatal(err)
 	}
 
-	err = conn.Exec("CREATE TABLE t (c1 PRIMARY KEY, c2, c3);")
+	err = conn.Exec("create table t (c1 primary key, c2, c3);")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,11 +62,11 @@ func fillSession(t *testing.T) (*sqlite3.Conn, *sqlite3.Session) {
 	}
 
 	stmts := []string{
-		`UPDATE t SET c1="one" WHERE c1="1";`,
-		`UPDATE t SET c2="two", c3="three" WHERE c1="one";`,
-		`UPDATE t SET c1="noop" WHERE c2="2";`,
-		`DELETE FROM t WHERE c1="4";`,
-		`INSERT INTO t (c1, c2, c3) VALUES ("four", "five", "six");`,
+		`update t set c1="one" where c1="1";`,
+		`update t set c2="two", c3="three" where c1="one";`,
+		`update t set c1="noop" where c2="2";`,
+		`delete from t where c1="4";`,
+		`insert into t (c1, c2, c3) values ("four", "five", "six");`,
 	}
 
 	for _, stmt := range stmts {
@@ -81,7 +81,7 @@ func fillSession(t *testing.T) (*sqlite3.Conn, *sqlite3.Session) {
 		t.Fatal(err)
 	}
 
-	stmt, err := conn.Prepare("INSERT INTO t (c1, c2, c3) VALUES (?,?,?);")
+	stmt, err := conn.Prepare("insert into t (c1, c2, c3) values (?,?,?);")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +234,7 @@ func TestChangesetApply(t *testing.T) {
 	//	INSERT INTO t (c1, c2, c3) VALUES ("4", "5", "6");
 	want := []string{"1,2,3", "4,5,6"}
 	var got []string
-	stmt, err := conn.Prepare("SELECT c1, c2, c3 FROM t ORDER BY c1;")
+	stmt, err := conn.Prepare("select c1, c2, c3 from t order by c1;")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +277,7 @@ func TestPatchsetApply(t *testing.T) {
 
 	var rowCountBefore int
 
-	stmt1, err := conn.Prepare("SELECT COUNT(*) FROM t;")
+	stmt1, err := conn.Prepare("select count(*) from t;")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestPatchsetApply(t *testing.T) {
 	s.Close()
 	s = nil
 
-	if err := conn.Exec("DELETE FROM t;"); err != nil {
+	if err := conn.Exec("delete from t;"); err != nil {
 		t.Fatal(err)
 	}
 	initT(t, conn)
@@ -329,7 +329,7 @@ func TestPatchsetApply(t *testing.T) {
 	}
 
 	var rowCountAfter int
-	stmt2, err := conn.Prepare("SELECT COUNT(*) FROM t;")
+	stmt2, err := conn.Prepare("select count(*) from t;")
 	if err != nil {
 		t.Fatal(err)
 	}
