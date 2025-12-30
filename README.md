@@ -2,7 +2,7 @@
 
 [![GoDoc](https://godoc.org/github.com/gianluigi/go-sqlite/sqlite3?status.svg)](https://godoc.org/github.com/gianluigi/go-sqlite/sqlite3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gianluigi/go-sqlite)](https://goreportcard.com/report/github.com/gianluigi/go-sqlite)
-
+[![Test go package](https://github.com/Gianluigi/go-sqlite/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/Gianluigi/go-sqlite/actions/workflows/go.yml)
 go-sqlite-lite is a SQLite driver for the Go programming language.  It is designed with the following goals in mind.
 
 * **Lightweight** - Most methods should be little more than a small wrapper around SQLite C functions.
