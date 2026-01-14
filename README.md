@@ -21,7 +21,8 @@ when returning error messages from SQLite, with the goal of keeping the driver i
 
 ## Releases
 
-* 2025-12-29 v0.6.2 - SQLite version 3.44.2 + minor bug fix
+* 2026-01-13 **v0.6.3** - SQLite version 3.51.2
+* 2025-12-29 **v0.6.2** - SQLite version 3.44.2 + minor bug fix
 * 2019-05-01 **v0.6.1** - Bug fixes, authorizer callback support
 * 2019-05-01 **v0.6.0** - SQLite version 3.28.0
 * 2019-02-05 **v0.5.0** - SQLite version 3.26.0
